@@ -4,21 +4,20 @@
 import pandas as pd 
 import csv
 
-sust_comunes = pd.read_csv('../data/Sustantivos_filtrados.csv')
+# cargo sustantivos, me quedo solo con los uqe tienen freq positiva
+sust_comunes = pd.read_csv('data/Sustantivos_filtrados.csv')
 sust_comunes = sust_comunes[sust_comunes.frecuencia != 0]
 
-sufijos_derivativos = pd.read_csv('../data/sufijos_derivativos_sustantivos.csv')
+# cargo sufijos
+sufijos_derivativos = pd.read_csv('data/sufijos_derivativos_sustantivos.csv')
 
+# armo la lista de sufijos (en singular) y ordeno por longitud
 lista = list(sufijos_derivativos['singular'])
 lista.sort(key=len, reverse=True)
 
+# Esto es solo para el guardado en listas chicas
 objetivo = 'expertos'
-
-if objetivo == 'estudiantes':
-    nListas = 5
-    lista = lista[:-3] #Esto es para correr sin flexivos (a, o ,e)
-elif objetivo == 'expertos':
-    nListas = 10
+nListas = 10
 
 filtradas = []
 filtro = {}
@@ -27,23 +26,20 @@ for suf in lista:
     raices = []
     filtro[suf] = []
     filtroTodas[suf] = []
+
     # Singulares
     filt_sing   = filter(lambda x: suf in x[-len(suf):], 
-                                 sust_comunes['palabra'].values)
-    #split_sing  = [x[:-len(suf)] + '-' + x[-len(suf):] for x in filt_sing]
+                                 sust_comunes['Palabra'].values)
     filt_sing_nuevas = [x for x in filt_sing if x not in filtradas]
     filtro[suf].append(filt_sing_nuevas)
     filtradas  += filt_sing_nuevas
-
 
     # Plurales
     ind = sufijos_derivativos['singular'] == suf 
     suf_plur = sufijos_derivativos['plural'][ind]
 
     filt_plur   = filter(lambda x: suf_plur.values[0] in x[-len(suf_plur):], 
-                                  sust_comunes['palabra'].values)
-
-    #split_plur  = [x[:-len(suf_plur)] + '-' + x[-len(suf_plur):] for x in filt_plur]
+                                  sust_comunes['Palabra'].values)
     filt_plur_nuevas = [x for x in filt_plur if x not in filtradas]
 
     # Antes de guardar las plurales, elimino las que ya guardamos como sing
@@ -58,66 +54,95 @@ for suf in lista:
 
     filtroTodas[suf] = filt_sing_nuevas + filt_plur_nuevas    
 
+# # Guardado nuevo
+# df = pd.DataFrame(list(filtroTodas.items()), columns=['s', 'p'])
+# print(df)
 
-# Guardado nuevo
+# Guardo todo junto
+def guardo(filtro, sufijo, numero, outfilename, npals):
+    for n,lista in enumerate(filtro[sufijo]):
+        if lista:
+            string = numero[n] + ' ; ' + sufijo + ' ; ' '\n'
+            f = open(outfilename, 'a')
+            f.write(string)
+            for pal in lista:
+                npals  = npals + 1          
+                string = numero[n] + ' ; ' + sufijo + ' ; ' + pal + '\n'
 
-longitudes  = sorted([len(filtroTodas[x]) for x in filtroTodas], reverse=True)
-indexSorted = sorted(filtroTodas, key=lambda k: len(filtroTodas[k]), reverse=True)
+                f = open(outfilename, 'a')
+                f.write(string)
 
-nfiles = 0
+    return npals
+
+outfilename = 'data/pals_por_sufijo_SinChequear.csv'     
+numero = ['singular', 'plural']
+f = open(outfilename, 'wb')
+f.close()
 npals = 0
-cantPalsMorfema = 15
+for sufijo in filtro:
+    guardo(filtro, sufijo, numero, outfilename, npals)
 
 
-listasGuardadas = []
-while sum(longitudes) > 0:
-    print(nfiles)
-    outfilename = 'para_' + objetivo + '/' + str(nfiles) + '.xls'     
-    # f = open(outfilename, 'wb')
-    # f.write('')
+# # OLD: esto es para generar las listas para expertos
+# longitudes  = sorted([len(filtroTodas[x]) for x in filtroTodas], reverse=True)
+# outfilename = 'todo.xls'     
+# writer = pd.ExcelWriter(outfilename)
+# df.to_excel(writer,'Sheet1')
+# writer.save()
 
-    df = pd.DataFrame({'p' : [],'s' : []})
-    guardadas = []
+# indexSorted = sorted(filtroTodas, key=lambda k: len(filtroTodas[k]), reverse=True)
 
-    for i in range(nListas):
-        if len(indexSorted)> i:
-            sufijo = indexSorted[i]
+# nfiles = 0
+# npals = 0
+# cantPalsMorfema = 15
 
-            if len(filtroTodas[sufijo]) > cantPalsMorfema:
-                pals = filtroTodas[sufijo][0:cantPalsMorfema]
-            else:
-                pals = filtroTodas[sufijo][0:]
 
-            Pals = ['']  + pals
-            sufs = [sufijo]*len(Pals)
-            tmp = pd.DataFrame({'p':Pals, 's':sufs})
-            df = pd.concat([df, tmp])
+# listasGuardadas = []
+# while sum(longitudes) > 0:
+    
+#     # f = open(outfilename, 'wb')
+#     # f.write('')
 
-            # guardo_new(pals, sufijo, outfilename)
-            # tosave = addPals(pals, sufijo)
+#     df = pd.DataFrame({'p' : [],'s' : []})
+#     guardadas = []
 
-            guardadas += pals
+#     for i in range(nListas):
+#         if len(indexSorted)> i:
+#             sufijo = indexSorted[i]
 
-            # Ahora que ya guardé, las elimino
-            for x in pals:
-                filtroTodas[sufijo].remove(x)
+#             if len(filtroTodas[sufijo]) > cantPalsMorfema:
+#                 pals = filtroTodas[sufijo][0:cantPalsMorfema]
+#             else:
+#                 pals = filtroTodas[sufijo][0:]
+
+#             Pals = ['']  + pals
+#             sufs = [sufijo]*len(Pals)
+#             tmp = pd.DataFrame({'p':Pals, 's':sufs})
+#             df = pd.concat([df, tmp])
+
+#             # guardo_new(pals, sufijo, outfilename)
+#             # tosave = addPals(pals, sufijo)
+
+#             guardadas += pals
+
+#             # Ahora que ya guardé, las elimino
+#             for x in pals:
+#                 filtroTodas[sufijo].remove(x)
     
 
-    writer = pd.ExcelWriter(outfilename)
-    df.to_excel(writer,'Sheet1')
-    writer.save()
+
     
-    # Elimino sufijos me quedan vacíos
-    filtroTodas = {k: v for k, v in filtroTodas.items() if len(v)>0}
-    longitudes  = sorted([len(filtroTodas[x]) for x in filtroTodas], reverse=True)
-    indexSorted = sorted(filtroTodas, key=lambda k: len(filtroTodas[k]), reverse=True)
-    nfiles += 1
+#     # Elimino sufijos me quedan vacíos
+#     filtroTodas = {k: v for k, v in filtroTodas.items() if len(v)>0}
+#     longitudes  = sorted([len(filtroTodas[x]) for x in filtroTodas], reverse=True)
+#     indexSorted = sorted(filtroTodas, key=lambda k: len(filtroTodas[k]), reverse=True)
+#     nfiles += 1
 
-    listasGuardadas.append(guardadas)
+#     listasGuardadas.append(guardadas)
 
-longitudesListas  = sorted([len(x) for x in listasGuardadas], reverse=True)
-umbral = cantPalsMorfema*nListas*.3
-sum([x<umbral for x in longitudesListas])
+# longitudesListas  = sorted([len(x) for x in listasGuardadas], reverse=True)
+# umbral = cantPalsMorfema*nListas*.3
+# sum([x<umbral for x in longitudesListas])
 
 
 
@@ -130,15 +155,6 @@ sum([x<umbral for x in longitudesListas])
 
 
 ############### OLD ############################3
-
-# # Guardo todo junto
-# outfilename = 'todo.csv'     
-# numero = ['singular', 'plural']
-# f = open(outfilename, 'wb')
-# f.write('')
-# npals = 0
-# for sufijo in filtro:
-#     guardo(filtro, sufijo, numero, outfilename, npals)
 
 
 
@@ -207,20 +223,7 @@ sum([x<umbral for x in longitudesListas])
 #     pals = '' + pals
 #     tosave = 1
 
-# def guardo(filtro, sufijo, numero, outfilename, npals):
-#     for n,lista in enumerate(filtro[sufijo]):
-#         if lista:
-#             string = numero[n] + ' ; ' + sufijo + ' ; ' '\n'
-#             f = open(outfilename, 'a')
-#             f.write(string)
-#             for pal in lista:
-#                 npals  = npals + 1          
-#                 string = numero[n] + ' ; ' + sufijo + ' ; ' + pal + '\n'
 
-#                 f = open(outfilename, 'a')
-#                 f.write(string)
-
-#     return npals
 
 # def guardo_new(pals, sufijo, outfilename):
 #     string = sufijo + ' ; ' '\n'
